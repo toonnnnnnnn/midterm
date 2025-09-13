@@ -6,6 +6,7 @@ import os
 from PIL import Image
 import fitz  # PyMuPDF for PDF processing
 import io
+from starlette.datastructures import UploadFile
 
 # Create Google GenAI client
 client = Client(api_key="AIzaSyAZGduXRY_l2RCAOdmVJv91cFZKsy0olDg")
@@ -121,12 +122,11 @@ def index():
     )
 
 @rt("/upload", methods=["POST"])
-def upload_file(request):
+async def upload_file(file: UploadFile):
     """Handle file upload and OCR processing"""
     try:
-        # Get uploaded file
-        file = request.files.get('file')
-        if not file:
+        # Check if file was uploaded
+        if not file or not file.filename:
             return Titled("Error",
                 Div(
                     Div(
@@ -140,7 +140,7 @@ def upload_file(request):
             )
         
         # Read file data
-        file_data = file.read()
+        file_data = await file.read()
         file_extension = file.filename.lower().split('.')[-1] if '.' in file.filename else ''
         
         # Process based on file type
