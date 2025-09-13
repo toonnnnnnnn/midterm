@@ -121,7 +121,7 @@ def index():
     )
 
 @rt("/upload", methods=["POST"])
-def upload_file():
+def upload_file(request):
     """Handle file upload and OCR processing"""
     try:
         # Get uploaded file
