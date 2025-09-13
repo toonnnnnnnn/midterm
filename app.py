@@ -78,7 +78,7 @@ def extract_text_from_pdf(pdf_data):
     except Exception as e:
         return f"Error processing PDF: {str(e)}"
 
-@rt.route("/")
+@rt("/")
 def index():
     """Main page with file upload form"""
     return Titled("OCR Document Reader")[
@@ -120,7 +120,7 @@ def index():
         )
     ]
 
-@rt.route("/upload", methods=["POST"])
+@rt("/upload", methods=["POST"])
 def upload_file():
     """Handle file upload and OCR processing"""
     try:
