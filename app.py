@@ -17,16 +17,20 @@ app, rt = fast_app()
 def extract_text_from_image(image_data):
     """Extract text from image using Google GenAI"""
     try:
+        print("Starting image processing...")
         # Create a PIL Image from bytes
         image = Image.open(io.BytesIO(image_data))
+        print(f"Image opened successfully: {image.size}, mode: {image.mode}")
         
         # Convert to RGB if necessary
         if image.mode != 'RGB':
             image = image.convert('RGB')
+            print("Converted image to RGB")
         
         # Save to temporary file
         with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as tmp_file:
             image.save(tmp_file.name, 'JPEG')
+            print(f"Saved image to temp file: {tmp_file.name}")
             
             # Read the file and process with GenAI
             with open(tmp_file.name, 'rb') as f:
@@ -34,12 +38,16 @@ def extract_text_from_image(image_data):
             
             # Clean up temporary file
             os.unlink(tmp_file.name)
+            print("Cleaned up temp file")
             
             # Process with Gemini using the new API - try different approaches
+            print("Attempting Google GenAI API call...")
             try:
                 # Try with base64 encoding
                 import base64
                 image_b64 = base64.b64encode(image_data).decode('utf-8')
+                print(f"Base64 encoded image, length: {len(image_b64)}")
+                
                 response = client.models.generate_content(
                     model='gemini-1.5-flash',
                     contents=[
@@ -47,12 +55,16 @@ def extract_text_from_image(image_data):
                         f"data:image/jpeg;base64,{image_b64}"
                     ]
                 )
+                print("API call successful with base64 method")
+                
             except Exception as e1:
+                print(f"Base64 method failed: {str(e1)}")
                 try:
                     # Try with file path approach
                     with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as tmp_file2:
                         tmp_file2.write(image_data)
                         tmp_file2.flush()
+                        print(f"Created temp file for path method: {tmp_file2.name}")
                         
                         response = client.models.generate_content(
                             model='gemini-1.5-flash',
@@ -62,13 +74,19 @@ def extract_text_from_image(image_data):
                             ]
                         )
                         os.unlink(tmp_file2.name)
+                        print("API call successful with file path method")
+                        
                 except Exception as e2:
+                    print(f"File path method failed: {str(e2)}")
                     # Fallback to simple text description
                     return "Unable to process image with current API configuration. Please try a different image or check API setup."
             
-            return response.text if response.text else "No text found in the image."
+            result = response.text if response.text else "No text found in the image."
+            print(f"OCR result: {result[:100]}...")  # Print first 100 chars
+            return result
             
     except Exception as e:
+        print(f"Error in extract_text_from_image: {str(e)}")
         return f"Error processing image: {str(e)}"
 
 def extract_text_from_pdf(pdf_data):
