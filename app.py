@@ -35,14 +35,24 @@ def extract_text_from_image(image_data):
             # Clean up temporary file
             os.unlink(tmp_file.name)
             
-            # Process with Gemini using the new API
-            response = client.models.generate_content(
-                model='gemini-1.5-flash',
-                contents=[
-                    "Extract all text from this image. Return only the extracted text without any additional commentary or formatting.",
-                    types.Part.from_data(image_data, mime_type="image/jpeg")
-                ]
-            )
+            # Process with Gemini using the new API - try different approach
+            try:
+                response = client.models.generate_content(
+                    model='gemini-1.5-flash',
+                    contents=[
+                        "Extract all text from this image. Return only the extracted text without any additional commentary or formatting.",
+                        types.Part.from_bytes(image_data, mime_type="image/jpeg")
+                    ]
+                )
+            except AttributeError:
+                # Try alternative method
+                response = client.models.generate_content(
+                    model='gemini-1.5-flash',
+                    contents=[
+                        "Extract all text from this image. Return only the extracted text without any additional commentary or formatting.",
+                        {"data": image_data, "mime_type": "image/jpeg"}
+                    ]
+                )
             
             return response.text if response.text else "No text found in the image."
             
