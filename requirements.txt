@@ -1,5 +1,4 @@
-fasthtml
-google-generativeai
-Pillow
-PyMuPDF
-python-multipart
+fasthtml==0.3.0
+google-genai==0.3.0
+Pillow==10.0.1
+PyMuPDF==1.23.8

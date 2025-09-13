@@ -1,140 +1,171 @@
-from fasthtml import *
-import google.generativeai as genai
-import os
-import tempfile
+from fasthtml.common import *
+from google.genai import types
+import google.genai as genai
+import base64
+import io
 from PIL import Image
 import fitz  # PyMuPDF for PDF processing
-import io
+import os
 
-# Configure Google GenAI
+# Configure Gemini API
 genai.configure(api_key="AIzaSyAZGduXRY_l2RCAOdmVJv91cFZKsy0olDg")
 
 # Initialize the model
 model = genai.GenerativeModel('gemini-1.5-flash')
 
-def extract_text_from_image(image_path):
-    """Extract text from image using Google GenAI"""
+def process_image_for_ocr(image_data):
+    """Process image data for OCR using Gemini API"""
     try:
-        image = Image.open(image_path)
-        response = model.generate_content(["Extract all text from this image. Return only the extracted text without any additional commentary.", image])
+        # Convert image data to PIL Image
+        image = Image.open(io.BytesIO(image_data))
+        
+        # Convert to RGB if necessary
+        if image.mode != 'RGB':
+            image = image.convert('RGB')
+        
+        # Save to bytes for API
+        img_buffer = io.BytesIO()
+        image.save(img_buffer, format='JPEG')
+        img_buffer.seek(0)
+        
+        # Create the prompt for OCR
+        prompt = "Extract all text from this image. Return only the extracted text without any additional commentary or formatting."
+        
+        # Generate content using Gemini
+        response = model.generate_content([prompt, types.Part.from_data(img_buffer.getvalue(), mime_type="image/jpeg")])
+        
         return response.text
     except Exception as e:
         return f"Error processing image: {str(e)}"
 
-def extract_text_from_pdf(pdf_path):
-    """Extract text from PDF by converting pages to images and using OCR"""
+def extract_images_from_pdf(pdf_data):
+    """Extract images from PDF for OCR processing"""
     try:
-        doc = fitz.open(pdf_path)
-        extracted_text = []
+        doc = fitz.open(stream=pdf_data, filetype="pdf")
+        images = []
         
         for page_num in range(len(doc)):
             page = doc.load_page(page_num)
-            # Convert page to image
-            mat = fitz.Matrix(2, 2)  # 2x zoom for better OCR
+            # Convert PDF page to image
+            mat = fitz.Matrix(2.0, 2.0)  # 2x zoom for better quality
             pix = page.get_pixmap(matrix=mat)
             img_data = pix.tobytes("png")
-            
-            # Save temporary image
-            with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp_file:
-                tmp_file.write(img_data)
-                tmp_file.flush()
-                
-                # Extract text from image
-                text = extract_text_from_image(tmp_file.name)
-                extracted_text.append(f"Page {page_num + 1}:\n{text}\n")
-                
-                # Clean up temporary file
-                os.unlink(tmp_file.name)
+            images.append(img_data)
         
         doc.close()
-        return "\n".join(extracted_text)
+        return images
+    except Exception as e:
+        raise Exception(f"Error extracting images from PDF: {str(e)}")
+
+def process_pdf_for_ocr(pdf_data):
+    """Process PDF for OCR by extracting images and running OCR on each"""
+    try:
+        images = extract_images_from_pdf(pdf_data)
+        all_text = []
+        
+        for i, img_data in enumerate(images):
+            text = process_image_for_ocr(img_data)
+            if text and not text.startswith("Error"):
+                all_text.append(f"Page {i+1}:\n{text}\n")
+        
+        return "\n".join(all_text) if all_text else "No text found in PDF"
     except Exception as e:
         return f"Error processing PDF: {str(e)}"
 
-@get("/")
+# FastHTML routes
+@route("/")
 def index():
-    return html(
-        head(
-            title("OCR Web Application"),
-            meta(charset="utf-8"),
-            meta(name="viewport", content="width=device-width, initial-scale=1"),
-            link(rel="stylesheet", href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css")
+    return Html(
+        Head(
+            Title("OCR Web Application"),
+            Meta(charset="utf-8"),
+            Meta(name="viewport", content="width=device-width, initial-scale=1"),
+            Link(rel="stylesheet", href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css")
         ),
-        body(
-            div(class_="container mt-5",
-                div(class_="row justify-content-center",
-                    div(class_="col-md-8",
-                        div(class_="card",
-                            div(class_="card-header bg-primary text-white",
-                                h1(class_="card-title text-center mb-0", "OCR Text Extraction")
-                            ),
-                            div(class_="card-body",
-                                form(action="/upload", method="post", enctype="multipart/form-data",
-                                    div(class_="mb-3",
-                                        label(for_="file", class_="form-label", "Select Image or PDF File:"),
-                                        input(type="file", class_="form-control", id_="file", name="file", accept=".jpg,.jpeg,.png,.pdf", required=True)
-                                    ),
-                                    div(class_="d-grid",
-                                        button(type="submit", class_="btn btn-primary btn-lg", "Extract Text")
-                                    )
-                                ),
-                                div(id="result", class_="mt-4")
-                            )
-                        )
-                    )
-                )
+        Body(
+            Div(
+                H1("OCR Web Application", class_="text-center mb-4"),
+                P("Upload an image or PDF file to extract text using OCR", class_="text-center text-muted mb-4"),
+                
+                Div(
+                    Form(
+                        Div(
+                            Label("Choose file:", class_="form-label"),
+                            Input(type="file", name="file", class_="form-control", accept=".jpg,.jpeg,.png,.pdf", required=True),
+                            class_="mb-3"
+                        ),
+                        Button("Extract Text", type="submit", class_="btn btn-primary"),
+                        method="post",
+                        enctype="multipart/form-data"
+                    ),
+                    class_="card p-4 mx-auto",
+                    style="max-width: 500px;"
+                ),
+                
+                Div(id="result", class_="mt-4"),
+                
+                Script(src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js")
             ),
-            script(src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js")
+            class_="container mt-5"
         )
     )
 
-@post("/upload")
-def upload_file(file: UploadFile):
-    if not file:
-        return html(
-            div(class_="alert alert-danger", "No file uploaded!"),
-            script("document.getElementById('result').innerHTML = arguments[0].outerHTML;", div(class_="alert alert-danger", "No file uploaded!"))
-        )
-    
+@route("/", methods=["POST"])
+def upload_file():
     try:
-        # Save uploaded file temporarily
-        with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file.filename)[1]) as tmp_file:
-            content = file.file.read()
-            tmp_file.write(content)
-            tmp_file.flush()
-            
-            # Determine file type and extract text
-            file_extension = os.path.splitext(file.filename)[1].lower()
-            
-            if file_extension in ['.jpg', '.jpeg', '.png']:
-                extracted_text = extract_text_from_image(tmp_file.name)
-            elif file_extension == '.pdf':
-                extracted_text = extract_text_from_pdf(tmp_file.name)
-            else:
-                extracted_text = "Unsupported file format. Please upload JPG, PNG, or PDF files."
-            
-            # Clean up temporary file
-            os.unlink(tmp_file.name)
-            
-            # Return result
-            result_html = div(
-                div(class_="alert alert-success", f"Successfully processed: {file.filename}"),
-                div(class_="card mt-3",
-                    div(class_="card-header", "Extracted Text:"),
-                    div(class_="card-body",
-                        pre(class_="bg-light p-3", style="max-height: 400px; overflow-y: auto;", extracted_text)
-                    )
+        # Get uploaded file
+        file = request.files.get('file')
+        if not file:
+            return Html(
+                Div(
+                    Div(
+                        H4("Error", class_="alert-heading"),
+                        P("No file uploaded"),
+                        class_="alert alert-danger"
+                    ),
+                    class_="container mt-4"
                 )
             )
-            
-            return html(
-                script(f"document.getElementById('result').innerHTML = `{result_html}`;")
+        
+        file_data = file.read()
+        file_extension = file.filename.lower().split('.')[-1] if '.' in file.filename else ''
+        
+        # Process based on file type
+        if file_extension in ['jpg', 'jpeg', 'png']:
+            result_text = process_image_for_ocr(file_data)
+        elif file_extension == 'pdf':
+            result_text = process_pdf_for_ocr(file_data)
+        else:
+            result_text = "Unsupported file type. Please upload JPG, PNG, or PDF files."
+        
+        # Display result
+        return Html(
+            Div(
+                Div(
+                    H4("Extracted Text", class_="alert-heading"),
+                    Pre(result_text, class_="mt-3 p-3 bg-light border rounded", style="white-space: pre-wrap; max-height: 400px; overflow-y: auto;"),
+                    class_="alert alert-success"
+                ),
+                Div(
+                    A("Upload Another File", href="/", class_="btn btn-secondary")
+                ),
+                class_="container mt-4"
             )
-            
+        )
+        
     except Exception as e:
-        error_html = div(class_="alert alert-danger", f"Error processing file: {str(e)}")
-        return html(
-            script(f"document.getElementById('result').innerHTML = `{error_html}`;")
+        return Html(
+            Div(
+                Div(
+                    H4("Error", class_="alert-heading"),
+                    P(f"An error occurred: {str(e)}"),
+                    class_="alert alert-danger"
+                ),
+                Div(
+                    A("Try Again", href="/", class_="btn btn-secondary")
+                ),
+                class_="container mt-4"
+            )
         )
 
 if __name__ == "__main__":
