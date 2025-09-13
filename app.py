@@ -35,35 +35,36 @@ def extract_text_from_image(image_data):
             # Clean up temporary file
             os.unlink(tmp_file.name)
             
-            # Process with Gemini using the new API
+            # Process with Gemini using the new API - try different approaches
             try:
-                # Try the correct API format - use File object
+                # Try with base64 encoding
+                import base64
+                image_b64 = base64.b64encode(image_data).decode('utf-8')
                 response = client.models.generate_content(
                     model='gemini-1.5-flash',
                     contents=[
                         "Extract all text from this image. Return only the extracted text without any additional commentary or formatting.",
-                        types.File(data=image_data, mime_type="image/jpeg")
+                        f"data:image/jpeg;base64,{image_b64}"
                     ]
                 )
             except Exception as e1:
                 try:
-                    # Try with Part object
-                    response = client.models.generate_content(
-                        model='gemini-1.5-flash',
-                        contents=[
-                            "Extract all text from this image. Return only the extracted text without any additional commentary or formatting.",
-                            types.Part(data=image_data, mime_type="image/jpeg")
-                        ]
-                    )
+                    # Try with file path approach
+                    with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as tmp_file2:
+                        tmp_file2.write(image_data)
+                        tmp_file2.flush()
+                        
+                        response = client.models.generate_content(
+                            model='gemini-1.5-flash',
+                            contents=[
+                                "Extract all text from this image. Return only the extracted text without any additional commentary or formatting.",
+                                types.File.from_path(tmp_file2.name)
+                            ]
+                        )
+                        os.unlink(tmp_file2.name)
                 except Exception as e2:
-                    # Try with Content object
-                    response = client.models.generate_content(
-                        model='gemini-1.5-flash',
-                        contents=[
-                            "Extract all text from this image. Return only the extracted text without any additional commentary or formatting.",
-                            types.Content(data=image_data, mime_type="image/jpeg")
-                        ]
-                    )
+                    # Fallback to simple text description
+                    return "Unable to process image with current API configuration. Please try a different image or check API setup."
             
             return response.text if response.text else "No text found in the image."
             
