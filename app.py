@@ -1,4 +1,4 @@
-from fasthtml.common import *
+from fasthtml import *
 from google.genai import types
 import google.genai as genai
 import tempfile
@@ -102,7 +102,7 @@ def index():
                     Form(
                         Div(
                             Label("Choose a file:", class_="form-label"),
-                            Input(type="file", name="file", class="form-control", accept=".jpg,.jpeg,.png,.pdf", required=True),
+                            Input(type="file", name="file", class_="form-control", accept=".jpg,.jpeg,.png,.pdf", required=True),
                             class_="mb-3"
                         ),
                         Div(
