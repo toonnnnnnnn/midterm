@@ -1,20 +1,17 @@
 from fasthtml import *
 from google.genai import types
-import google.genai as genai
+from google.genai import Client
 import tempfile
 import os
 from PIL import Image
 import fitz  # PyMuPDF for PDF processing
 import io
 
-# Configure Google GenAI
-genai.configure(api_key="AIzaSyAZGduXRY_l2RCAOdmVJv91cFZKsy0olDg")
+# Create Google GenAI client
+client = Client(api_key="AIzaSyAZGduXRY_l2RCAOdmVJv91cFZKsy0olDg")
 
 # Create FastHTML app
 app = FastHTML()
-
-# Configure the model for OCR
-model = genai.GenerativeModel('gemini-1.5-flash')
 
 def extract_text_from_image(image_data):
     """Extract text from image using Google GenAI"""
@@ -37,11 +34,14 @@ def extract_text_from_image(image_data):
             # Clean up temporary file
             os.unlink(tmp_file.name)
             
-            # Process with Gemini
-            response = model.generate_content([
-                "Extract all text from this image. Return only the extracted text without any additional commentary or formatting.",
-                types.Part.from_data(image_data, mime_type="image/jpeg")
-            ])
+            # Process with Gemini using the new API
+            response = client.models.generate_content(
+                model='gemini-1.5-flash',
+                contents=[
+                    "Extract all text from this image. Return only the extracted text without any additional commentary or formatting.",
+                    types.Part.from_data(image_data, mime_type="image/jpeg")
+                ]
+            )
             
             return response.text if response.text else "No text found in the image."
             
