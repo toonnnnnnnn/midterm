@@ -144,11 +144,17 @@ def index():
     )
 
 @rt("/upload", methods=["POST"])
-async def upload_file(file: UploadFile):
+async def upload_file(request):
     """Handle file upload and OCR processing"""
     try:
+        print("Upload request received")
+        # Get uploaded file from request
+        form = await request.form()
+        file = form.get("file")
+        print(f"File object: {file}")
+        
         # Check if file was uploaded
-        if not file or not file.filename:
+        if not file or not hasattr(file, 'filename') or not file.filename:
             return Titled("Error",
                 Div(
                     Div(
@@ -164,11 +170,14 @@ async def upload_file(file: UploadFile):
         # Read file data
         file_data = await file.read()
         file_extension = file.filename.lower().split('.')[-1] if '.' in file.filename else ''
+        print(f"File extension: {file_extension}, File size: {len(file_data)} bytes")
         
         # Process based on file type
         if file_extension in ['jpg', 'jpeg', 'png']:
+            print("Processing as image...")
             extracted_text = extract_text_from_image(file_data)
         elif file_extension == 'pdf':
+            print("Processing as PDF...")
             extracted_text = extract_text_from_pdf(file_data)
         else:
             return Titled("Error",
