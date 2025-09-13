@@ -1,4 +1,4 @@
-from fasthtml import *
+from fasthtml.common import *
 from google.genai import types
 from google.genai import Client
 import tempfile
@@ -11,7 +11,7 @@ import io
 client = Client(api_key="AIzaSyAZGduXRY_l2RCAOdmVJv91cFZKsy0olDg")
 
 # Create FastHTML app
-app = FastHTML()
+app, rt = fast_app()
 
 def extract_text_from_image(image_data):
     """Extract text from image using Google GenAI"""
@@ -78,12 +78,11 @@ def extract_text_from_pdf(pdf_data):
     except Exception as e:
         return f"Error processing PDF: {str(e)}"
 
-@app.route("/")
+@rt.route("/")
 def index():
     """Main page with file upload form"""
-    return Html(
+    return Titled("OCR Document Reader")[
         Head(
-            Title("OCR Document Reader"),
             Meta(charset="utf-8"),
             Meta(name="viewport", content="width=device-width, initial-scale=1"),
             Link(rel="stylesheet", href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css")
@@ -119,16 +118,16 @@ def index():
             ),
             Script(src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js")
         )
-    )
+    ]
 
-@app.route("/upload", methods=["POST"])
+@rt.route("/upload", methods=["POST"])
 def upload_file():
     """Handle file upload and OCR processing"""
     try:
         # Get uploaded file
         file = request.files.get('file')
         if not file:
-            return Html(
+            return Titled("Error")[
                 Div(
                     Div(
                         H2("Error", class_="text-danger"),
@@ -138,7 +137,7 @@ def upload_file():
                     ),
                     class_="container mt-5"
                 )
-            )
+            ]
         
         # Read file data
         file_data = file.read()
@@ -150,7 +149,7 @@ def upload_file():
         elif file_extension == 'pdf':
             extracted_text = extract_text_from_pdf(file_data)
         else:
-            return Html(
+            return Titled("Error")[
                 Div(
                     Div(
                         H2("Error", class_="text-danger"),
@@ -160,12 +159,11 @@ def upload_file():
                     ),
                     class_="container mt-5"
                 )
-            )
+            ]
         
         # Display results
-        return Html(
+        return Titled("OCR Results")[
             Head(
-                Title("OCR Results"),
                 Meta(charset="utf-8"),
                 Meta(name="viewport", content="width=device-width, initial-scale=1"),
                 Link(rel="stylesheet", href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css")
@@ -188,10 +186,10 @@ def upload_file():
                 ),
                 Script(src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js")
             )
-        )
+        ]
         
     except Exception as e:
-        return Html(
+        return Titled("Error")[
             Div(
                 Div(
                     H2("Error", class_="text-danger"),
@@ -201,7 +199,7 @@ def upload_file():
                 ),
                 class_="container mt-5"
             )
-        )
+        ]
 
 if __name__ == "__main__":
     serve(port=5000)
