@@ -37,31 +37,31 @@ def extract_text_from_image(image_data):
             
             # Process with Gemini using the new API
             try:
-                # Try the correct API format
+                # Try the correct API format - use File object
                 response = client.models.generate_content(
                     model='gemini-1.5-flash',
                     contents=[
                         "Extract all text from this image. Return only the extracted text without any additional commentary or formatting.",
-                        types.Part.from_bytes(image_data)
+                        types.File(data=image_data, mime_type="image/jpeg")
                     ]
                 )
             except Exception as e1:
                 try:
-                    # Try alternative method with mime_type as parameter
+                    # Try with Part object
                     response = client.models.generate_content(
                         model='gemini-1.5-flash',
                         contents=[
                             "Extract all text from this image. Return only the extracted text without any additional commentary or formatting.",
-                            types.Part.from_bytes(image_data, mime_type="image/jpeg")
+                            types.Part(data=image_data, mime_type="image/jpeg")
                         ]
                     )
                 except Exception as e2:
-                    # Try dictionary format
+                    # Try with Content object
                     response = client.models.generate_content(
                         model='gemini-1.5-flash',
                         contents=[
                             "Extract all text from this image. Return only the extracted text without any additional commentary or formatting.",
-                            {"data": image_data, "mime_type": "image/jpeg"}
+                            types.Content(data=image_data, mime_type="image/jpeg")
                         ]
                     )
             
