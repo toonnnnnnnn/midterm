@@ -81,7 +81,7 @@ def extract_text_from_pdf(pdf_data):
 @rt("/")
 def index():
     """Main page with file upload form"""
-    return Titled("OCR Document Reader")[
+    return Titled("OCR Document Reader",
         Head(
             Meta(charset="utf-8"),
             Meta(name="viewport", content="width=device-width, initial-scale=1"),
@@ -118,7 +118,7 @@ def index():
             ),
             Script(src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js")
         )
-    ]
+    )
 
 @rt("/upload", methods=["POST"])
 def upload_file():
@@ -127,7 +127,7 @@ def upload_file():
         # Get uploaded file
         file = request.files.get('file')
         if not file:
-            return Titled("Error")[
+            return Titled("Error",
                 Div(
                     Div(
                         H2("Error", class_="text-danger"),
@@ -137,7 +137,7 @@ def upload_file():
                     ),
                     class_="container mt-5"
                 )
-            ]
+            )
         
         # Read file data
         file_data = file.read()
@@ -149,7 +149,7 @@ def upload_file():
         elif file_extension == 'pdf':
             extracted_text = extract_text_from_pdf(file_data)
         else:
-            return Titled("Error")[
+            return Titled("Error",
                 Div(
                     Div(
                         H2("Error", class_="text-danger"),
@@ -159,10 +159,10 @@ def upload_file():
                     ),
                     class_="container mt-5"
                 )
-            ]
+            )
         
         # Display results
-        return Titled("OCR Results")[
+        return Titled("OCR Results",
             Head(
                 Meta(charset="utf-8"),
                 Meta(name="viewport", content="width=device-width, initial-scale=1"),
@@ -186,10 +186,10 @@ def upload_file():
                 ),
                 Script(src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js")
             )
-        ]
+        )
         
     except Exception as e:
-        return Titled("Error")[
+        return Titled("Error",
             Div(
                 Div(
                     H2("Error", class_="text-danger"),
@@ -199,7 +199,7 @@ def upload_file():
                 ),
                 class_="container mt-5"
             )
-        ]
+        )
 
 if __name__ == "__main__":
     serve(port=5000)
